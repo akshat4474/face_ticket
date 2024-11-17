@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <base href="{{ url_for('static', filename='') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Tickets</title>
+    <style>
+        /* General styling */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1b1b1b;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 40px;
+            color: #e2e2e2;
+        }
+
+        .ticket-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .ticket {
+            background: linear-gradient(135deg, #252525, #1a1a1a);
+            border: 2px solid #555;
+            border-radius: 15px;
+            width: 380px;
+            max-width: 90%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .ticket img.movie-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .ticket-header {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #e2e2e2;
+            margin: 10px 0;
+        }
+
+        .ticket-info {
+            font-size: 1em;
+            line-height: 1.5;
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            width: 100%;
+            color: #c2c2c2;
+            margin-bottom: 15px;
+        }
+
+        .ticket-info div {
+            margin: 5px 0;
+        }
+
+        .qr-code {
+            width: 90px;
+            height: 90px;
+            margin-top: 10px;
+            border: 4px solid #444;
+            border-radius: 10px;
+            background-color: #fff;
+            padding: 8px;
+        }
+
+        .footer-section {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: #aaa;
+            font-style: italic;
+        }
+
+        .download-button, .verify-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #ff5722, #e64a19);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1em;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        .download-button:hover, .verify-button:hover {
+            background: linear-gradient(135deg, #e64a19, #d32f2f);
+            transform: scale(1.05);
+        }
+
+        .download-button:active, .verify-button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <h1>Your Movie Tickets</h1>
+    <div class="ticket-container">
+        {% if ticket %}
+        <div class="ticket">
+            <!-- Movie Image -->
+            <img src="{{ url_for('static', filename=ticket['movie_image']) }}" alt="{{ ticket['movie_title'] }}" class="movie-image">
+            
+            <!-- Ticket Details -->
+            <div class="ticket-header">{{ ticket['movie_title'] }}</div>
+            <div class="ticket-info">
+                <div>Show Time: {{ ticket['show_time'] }}</div>
+                <div>Date: {{ ticket['date'] }}</div>
+                <div>Seat Number: {{ ticket['seat_number'] }}</div>
+                <div>Cinema: {{ ticket['cinema_name'] }}</div>
+                <div>Price: ${{ ticket['ticket_price'] }}</div>
+            </div>
+            
+            <!-- QR Code -->
+            <div class="qr-code-container">
+                <img src="{{ url_for('static', filename=ticket['qr_code_image'][7:]) }}" alt="QR Code" class="qr-code">
+            </div>
+            
+            <!-- Download Ticket Button -->
+            <a href="{{ url_for('generate_tickets', user_id=ticket['user_id']) }}" class="download-button">Download Ticket</a>
+            
+            <!-- Footer Section -->
+            <div class="footer-section">Scan the QR code for ticket details</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const downloadButton = document.querySelector('.download-button');
+            if (downloadButton) {
+                console.log('Download URL:', downloadButton.href);
+            }
+        });
+    </script>
+</body>
+</html>
