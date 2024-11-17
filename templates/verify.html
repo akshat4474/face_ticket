@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Ticket</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1b1b1b;
+            color: #fff;
+            text-align: center;
+            padding: 50px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .button {
+            padding: 10px 20px;
+            font-size: 1.2em;
+            color: #fff;
+            background-color: #2196f3;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            display: inline-block;
+        }
+
+        .button:hover {
+            background-color: #1e88e5;
+        }
+
+        #camera, #qrCamera {
+            margin: 20px auto;
+            border: 3px solid #2196f3;
+            width: 500px;
+            height: 400px;
+            background: #000;
+        }
+
+        #qrCamera {
+            display: block;
+        }
+
+        #camera {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Verify Your Ticket</h1>
+    <p>First, align your QR code with the camera to scan it. Then align your face in the camera and press "Verify Face" to proceed.</p>
+
+    <!-- QR Code Scanner Container -->
+    <div>
+        <video id="qrCamera" autoplay></video>
+    </div>
+    <button class="button" id="startFaceVerificationButton" style="display: none;">Start Face Verification</button>
+
+    <!-- Face Camera Container -->
+    <div>
+        <video id="camera" autoplay></video>
+    </div>
+    <button class="button" id="verifyButton" style="display: none;">Verify Face</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const qrVideo = document.getElementById('qrCamera');
+            const faceVideo = document.getElementById('camera');
+            const startFaceVerificationButton = document.getElementById('startFaceVerificationButton');
+            const verifyButton = document.getElementById('verifyButton');
+            let scannedUserId = null;
+
+            // Access the user's webcam for QR code scanning
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then((stream) => {
+                    qrVideo.srcObject = stream;
+
+                    qrVideo.onloadedmetadata = () => {
+                        qrVideo.play();
+                        scanQrCode(stream);
+                    };
+                })
+                .catch((err) => {
+                    console.error("Error accessing webcam: ", err);
+                    alert("Unable to access the camera. Please check your permissions and try again.");
+                });
+
+            // Function to scan QR code
+            function scanQrCode(stream) {
+                const qrCanvas = document.createElement('canvas');
+                const qrContext = qrCanvas.getContext('2d');
+
+                function tick() {
+                    if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
+                        qrCanvas.height = qrVideo.videoHeight;
+                        qrCanvas.width = qrVideo.videoWidth;
+                        qrContext.drawImage(qrVideo, 0, 0, qrCanvas.width, qrCanvas.height);
+
+                        const imageData = qrContext.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+                        const qrCode = jsQR(imageData.data, qrCanvas.width, qrCanvas.height);
+
+                        if (qrCode) {
+                            scannedUserId = qrCode.data;
+                            console.log(`QR Code detected: ${scannedUserId}`);
+                            alert("QR code scanned successfully! Click 'Start Face Verification' to proceed.");
+
+                            // Stop the QR video feed and show the start face verification button
+                            stream.getTracks().forEach(track => track.stop());
+                            qrVideo.style.display = 'none';
+                            startFaceVerificationButton.style.display = 'block';
+                        }
+                    }
+
+                    requestAnimationFrame(tick);
+                }
+
+                tick();
+            }
+
+            // Start face verification after QR code scanning
+            startFaceVerificationButton.addEventListener('click', () => {
+                if (!scannedUserId) {
+                    alert("Please scan your QR code first.");
+                    return;
+                }
+
+                console.log("Starting face verification...");
+                
+                // Hide the button and start showing the camera view for face verification
+                startFaceVerificationButton.style.display = 'none';
+                faceVideo.style.display = 'block';
+                verifyButton.style.display = 'block';
+
+                // Access the user's webcam only for face verification
+                navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                })
+                .then((stream) => {
+                    faceVideo.srcObject = stream;
+
+                    faceVideo.onloadedmetadata = () => {
+                        faceVideo.play();
+                    };
+                })
+                .catch((err) => {
+                    console.error("Error accessing webcam: ", err);
+                    alert("Unable to access the camera. Please check your permissions and try again.");
+                });
+            });
+
+            // Capture image and send to the server for verification
+            verifyButton.addEventListener('click', () => {
+                if (!scannedUserId) {
+                    alert("Please scan your QR code first.");
+                    return;
+                }
+
+                console.log("Capturing image for face verification...");
+                const canvas = document.createElement('canvas');
+                canvas.width = faceVideo.videoWidth;
+                canvas.height = faceVideo.videoHeight;
+                canvas.getContext('2d').drawImage(faceVideo, 0, 0, canvas.width, canvas.height);
+
+                // Convert canvas to image data
+                const imageData = canvas.toDataURL('image/png');
+
+                // Send the captured image and user ID to the server for verification
+                fetch('/verify-face', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageData, user_id: scannedUserId }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        alert(data.message);
+                        if (data.user_id) {
+                            // Redirect to ticket or confirmation page
+                            window.location.href = `/ticket?user_id=${data.user_id}`;
+                        }
+                    } else if (data.error) {
+                        alert(data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error during verification:", err);
+                    alert("An error occurred during verification.");
+                });
+            });
+        });
+    </script>
+</body>
+</html>
